@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ISKCON Login System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .otp-input:focus { border-color: #f2994a; box-shadow: 0 0 0 2px rgba(242,153,74,0.2); }
+    </style>
+</head>
+<body class="bg-gray-50 flex items-center justify-center min-h-[100vh] p-4">
+
+    <div class="bg-white w-full max-w-md p-6 rounded-2xl shadow-lg border border-gray-100 min-h-[550px] flex flex-col justify-between">
+        
+        <!-- Top Logo -->
+        <div class="text-center mt-4">
+            <svg class="mx-auto w-14 h-14 text-[#e67e22]" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12,2C11.5,4 10,6 8,8C6,10 4,11 2,12C4,13 6,14 8,16C10,18 11.5,20 12,22C12.5,20 14,18 16,16C18,14 20,13 22,12C20,11 18,10 16,8C14,6 12.5,4 12,2Z"/>
+            </svg>
+            <h1 class="text-xl font-bold tracking-widest text-[#d35400] mt-2">ISKCON</h1>
+            <p class="text-[9px] uppercase tracking-widest text-gray-400">Pandharpur</p>
+        </div>
+
+        <!-- SCREEN 1: Phone Input -->
+        <div id="screen-phone" class="my-auto space-y-6">
+            <div class="text-center">
+                <h2 class="text-xl font-bold text-gray-800">Sign In</h2>
+                <p class="text-xs text-gray-500 mt-1">Enter your phone number to continue</p>
+            </div>
+            
+            <div class="flex items-center border border-gray-300 rounded-xl p-3 bg-white">
+                <span class="text-gray-700 font-semibold mr-2">🇮🇳 +91</span>
+                <input type="tel" id="phone-number" maxlength="10" placeholder="9561160799" class="w-full focus:outline-none font-semibold text-lg text-gray-800" />
+            </div>
+
+            <button onclick="sendOTP()" id="send-btn" class="w-full bg-[#f2994a] hover:bg-[#e0853c] text-white font-semibold py-3.5 rounded-xl transition-all duration-200">
+                Send OTP
+            </button>
+        </div>
+
+        <!-- SCREEN 2: OTP Verification -->
+        <div id="screen-otp" class="hidden my-auto space-y-6">
+            <div class="text-center">
+                <h2 class="text-xl font-bold text-gray-800">Verifying Your Number</h2>
+                <p class="text-xs text-gray-500 mt-2">We've sent code via WhatsApp to <span id="display-number" class="font-bold text-gray-700"></span></p>
+                <button onclick="showPhoneScreen()" class="text-[#f2994a] text-xs font-semibold mt-1 hover:underline">Change Number</button>
+            </div>
+
+            <div>
+                <div class="flex justify-between gap-2" id="otp-inputs">
+                    <input type="text" maxlength="1" class="otp-input w-10 h-12 border border-gray-300 rounded-xl text-center font-bold text-xl text-gray-800 focus:outline-none" />
+                    <input type="text" maxlength="1" class="otp-input w-10 h-12 border border-gray-300 rounded-xl text-center font-bold text-xl text-gray-800 focus:outline-none" />
+                    <input type="text" maxlength="1" class="otp-input w-10 h-12 border border-gray-300 rounded-xl text-center font-bold text-xl text-gray-800 focus:outline-none" />
+                    <input type="text" maxlength="1" class="otp-input w-10 h-12 border border-gray-300 rounded-xl text-center font-bold text-xl text-gray-800 focus:outline-none" />
+                    <input type="text" maxlength="1" class="otp-input w-10 h-12 border border-gray-300 rounded-xl text-center font-bold text-xl text-gray-800 focus:outline-none" />
+                    <input type="text" maxlength="1" class="otp-input w-10 h-12 border border-gray-300 rounded-xl text-center font-bold text-xl text-gray-800 focus:outline-none" />
+                </div>
+            </div>
+
+            <div class="flex justify-between items-center text-xs px-1">
+                <button onclick="sendOTP()" id="resend-btn" class="text-gray-400 font-semibold cursor-not-allowed" disabled>Resend code</button>
+                <span id="timer" class="text-gray-500">02:00 min left</span>
+            </div>
+
+            <button onclick="verifyOTP()" id="verify-btn" class="w-full bg-[#f2994a] hover:bg-[#e0853c] text-white font-semibold py-3.5 rounded-xl transition-all duration-200">
+                Verify Code
+            </button>
+        </div>
+
+        <!-- SCREEN 3: Success Screen -->
+        <div id="screen-success" class="hidden text-center my-auto space-y-4">
+            <div class="w-14 h-14 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto text-2xl">✓</div>
+            <h2 class="text-xl font-bold text-gray-800">Login Successful!</h2>
+            <button onclick="showPhoneScreen()" class="mt-4 text-[#f2994a] font-semibold hover:underline">Go Back</button>
+        </div>
+
+        <!-- Bottom Text -->
+        <div class="text-center text-[9px] text-gray-400 mt-4">
+            Protected by secure OTP system.
+        </div>
+
+    </div>
+
+    <script>
+        // Aapka direct live backend URL configured hai!
+        const BACKEND_URL = "https://whatsap-otp-backend.onrender.com"; 
+
+        let currentNumber = "";
+        let timerInterval;
+
+        const inputs = document.querySelectorAll('#otp-inputs input');
+        inputs.forEach((input, index) => {
+            input.addEventListener('keyup', (e) => {
+                if (e.key >= 0 && e.key <= 9) {
+                    if (index < inputs.length - 1) inputs[index + 1].focus();
+                } else if (e.key === 'Backspace') {
+                    if (index > 0) inputs[index - 1].focus();
+                }
+            });
+        });
+
+        function showPhoneScreen() {
+            document.getElementById('screen-phone').classList.remove('hidden');
+            document.getElementById('screen-otp').classList.add('hidden');
+            document.getElementById('screen-success').classList.add('hidden');
+            clearInterval(timerInterval);
+        }
+
+        function startTimer() {
+            let timeLeft = 120;
+            const timerEl = document.getElementById('timer');
+            const resendBtn = document.getElementById('resend-btn');
+            resendBtn.disabled = true;
+            resendBtn.classList.add('text-gray-400');
+            resendBtn.classList.remove('text-[#f2994a]', 'hover:underline');
+
+            clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                let minutes = Math.floor(timeLeft / 60);
+                let seconds = timeLeft % 60;
+                seconds = seconds < 10 ? '0' + seconds : seconds;
+                timerEl.innerText = `0${minutes}:${seconds} min left`;
+
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    timerEl.innerText = "Time expired";
+                    resendBtn.disabled = false;
+                    resendBtn.classList.remove('text-gray-400');
+                    resendBtn.classList.add('text-[#f2994a]', 'hover:underline');
+                }
+                timeLeft--;
+            }, 1000);
+        }
+
+        async function sendOTP() {
+            const numInput = document.getElementById('phone-number').value;
+            if(numInput.length !== 10) {
+                alert("Please enter a valid 10-digit number.");
+                return;
+            }
+            
+            currentNumber = numInput;
+            document.getElementById('send-btn').innerText = "Sending...";
+            
+            try {
+                const res = await fetch(`${BACKEND_URL}/api/send-otp`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ number: currentNumber })
+                });
+                const data = await res.json();
+                
+                if(data.success) {
+                    document.getElementById('display-number').innerText = "+91 " + currentNumber;
+                    document.getElementById('screen-phone').classList.add('hidden');
+                    document.getElementById('screen-otp').classList.remove('hidden');
+                    startTimer();
+                } else {
+                    alert(data.error || "Failed to send OTP.");
+                }
+            } catch(err) {
+                alert("Error connecting to server. Is your Render server still starting up? Please wait 30 seconds.");
+            } finally {
+                document.getElementById('send-btn').innerText = "Send OTP";
+            }
+        }
+
+        async function verifyOTP() {
+            let otp = "";
+            inputs.forEach(input => otp += input.value);
+
+            if (otp.length !== 6) {
+                alert("Please enter all 6 digits.");
+                return;
+            }
+
+            document.getElementById('verify-btn').innerText = "Verifying...";
+
+            try {
+                const res = await fetch(`${BACKEND_URL}/api/verify-otp`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ number: currentNumber, otp: otp })
+                });
+                const data = await res.json();
+
+                if(data.success) {
+                    document.getElementById('screen-otp').classList.add('hidden');
+                    document.getElementById('screen-success').classList.remove('hidden');
+                    inputs.forEach(input => input.value = "");
+                } else {
+                    alert(data.error || "Wrong OTP");
+                }
+            } catch(err) {
+                alert("Verification failed.");
+            } finally {
+                document.getElementById('verify-btn').innerText = "Verify Code";
+            }
+        }
+    </script>
+</body>
+</html>
